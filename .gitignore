@@ -7,3 +7,6 @@
 !*.go
 !*.md
 !.gitignore
+
+# Whitelist the following files
+!go.mod
