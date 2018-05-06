@@ -10,3 +10,4 @@
 
 # Whitelist the following files
 !go.mod
+!parse/grammar.txt

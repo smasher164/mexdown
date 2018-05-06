@@ -1,3 +1,27 @@
+// MIT License
+
+// Copyright (c) 2018 Akhil Indurti
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Package parse implements a scannerless parser mexdown source text.
+// It takes an io.Reader as source, and outputs an *ast.File.
 package parse
 
 import (
@@ -11,31 +35,20 @@ import (
 	"github.com/smasher164/mexdown/ast"
 )
 
-const eof = -1
-
-type parser struct {
-	errors []error
-	b      *bufio.Reader
-	r      rune
-	st     ast.Stmt
-	cite   map[string]string
-}
-
-func MustParse(r io.Reader) *ast.File {
-	f := Parse(r)
-	if len(f.Errors) > 0 {
-		panic(concatErr(f.Errors))
-	}
-	return f
-}
-
-func Parse(r io.Reader) *ast.File {
+// Parse returns the corresponding AST structure for the text src.
+func Parse(src io.Reader) (f *ast.File, err error) {
 	p := &parser{
 		errors: []error{},
-		b:      bufio.NewReader(r),
+		b:      bufio.NewReader(src),
 		cite:   make(map[string]string),
 	}
-	f := p.parse()
+	// source_file = { statement [ newline ] [ newline ] } .
+	f = &ast.File{List: []ast.Stmt{}}
+	p.next()
+	for p.r != eof || p.st != nil {
+		f.List = append(f.List, p.stmt())
+	}
+	f.Cite = p.cite
 	// combine consecutive paragraphs
 	for i, j := 0, 1; i < len(f.List) && j < len(f.List); i, j = i+1, j+1 {
 		pi, _ := f.List[i].(*ast.Paragraph)
@@ -82,66 +95,62 @@ func Parse(r io.Reader) *ast.File {
 			pi.Format = txt.Format
 		}
 	}
-	return f
-}
-
-func concatErr(errs []error) error {
-	var buf strings.Builder
-	for _, e := range errs {
-		buf.WriteString(e.Error() + "\n")
+	var es strings.Builder
+	for _, e := range p.errors {
+		es.WriteString(e.Error())
+		es.WriteString("\n")
 	}
-	return errors.New(buf.String())
-}
-
-func (p *parser) parse() *ast.File {
-	f := &ast.File{List: []ast.Stmt{}}
-	p.next()
-	for p.r != eof || p.st != nil {
-		f.List = append(f.List, p.stmt())
+	if len(p.errors) > 0 {
+		err = errors.New(es.String())
 	}
-	f.Errors = p.errors
-	f.Cite = p.cite
-	return f
+	return f, err
 }
 
-func (p *parser) next() rune {
-	r, size, err := p.b.ReadRune()
-	if err == io.EOF || size == 0 || r == utf8.RuneError {
-		r = eof
+const eof = -1
+
+type parser struct {
+	errors []error
+	b      *bufio.Reader
+	r      rune
+	st     ast.Stmt
+	cite   map[string]string
+}
+
+// statement = header | directive | list | paragraph | citation .
+func (p *parser) stmt() ast.Stmt {
+	if p.st != nil {
+		temp := p.st
+		p.st = nil
+		return temp
 	}
-	p.r = r
-	return r
-}
-
-// str reads all input up to, but not including end.
-// Does not advance pointer in input past end.
-// Calls f to determine whether or not to write.
-func (p *parser) str(end rune, esc, f func(rune) bool) string {
-	var buf strings.Builder
-	for {
-		if p.r == '\\' && esc != nil {
-			p.next()
-			if !esc(p.r) {
-				buf.WriteRune('\\')
-			}
+	switch p.r {
+	case '#':
+		return p.header()
+	case '`':
+		return p.directive()
+	case '[':
+		return p.citation()
+	case '-':
+		l, st := p.list()
+		if l.Items == nil {
+			return st
 		}
-		if p.r == end || p.r == eof {
-			break
-		}
-		if f == nil || f(p.r) {
-			buf.WriteRune(p.r)
-		}
-		p.next()
+		p.st = st
+		return l
+	default:
+		return p.paragraph("")
 	}
-	return buf.String()
 }
 
-func escapable(r rune) bool {
-	switch r {
-	case '\\', '#', '`', '-', '*', '[', ']', '(', ')', '_':
-		return true
+// header = octothorpe { octothorpe } text .
+func (p *parser) header() *ast.Header {
+	var hdr ast.Header
+	hdr.NThorpe = 1
+	for p.next() == '#' {
+		hdr.NThorpe++
 	}
-	return false
+	hdr.Text = p.text('\n')
+	return &hdr
 }
 
 // text = unicode_char { unicode_char } |
@@ -374,67 +383,8 @@ func (p *parser) text(end rune) ast.Text {
 	}
 }
 
-func (p *parser) paragraph(before string) *ast.Paragraph {
-	if len(before) > 0 {
-		rdr := io.MultiReader(strings.NewReader(before+string(p.r)), p.b)
-		p.b = bufio.NewReader(rdr)
-		p.next()
-	}
-	par := ast.Paragraph{
-		Format: nil,
-		Body:   p.line(nil),
-	}
-	return &par
-}
-
-func (p *parser) line(esc func(r rune) bool) string {
-	l := p.str('\n', esc, func(r rune) bool { return p.r != '\r' })
-	p.next()
-	return l
-}
-
-func (p *parser) errorf(format string, args ...interface{}) {
-	p.errors = append(p.errors, fmt.Errorf(format, args...))
-}
-
-func (p *parser) stmt() ast.Stmt {
-	if p.st != nil {
-		temp := p.st
-		p.st = nil
-		return temp
-	}
-	switch p.r {
-	case '#':
-		return p.header()
-	case '`':
-		return p.directive()
-	case '[':
-		return p.citation()
-	case '-':
-		l, st := p.list()
-		if l.Items == nil {
-			return st
-		}
-		p.st = st
-		return l
-	default:
-		return p.paragraph("")
-	}
-}
-
-func (p *parser) header() *ast.Header {
-	var hdr ast.Header
-	hdr.NThorpe = 1
-	for p.next() == '#' {
-		hdr.NThorpe++
-	}
-	hdr.Text = p.text('\n')
-	return &hdr
-}
-
-// directive = backtick backtick backtick { backtick } [ command ] newline
-// 			   string
-// 			   backtick backtick backtick { backtick } .
+// dirbody = backtick dirbody backtick | [ command ] newline string .
+// directive = backtick backtick backtick dirbody backtick backtick backtick .
 func (p *parser) directive() ast.Stmt {
 	if p.next() != '`' {
 		return p.paragraph("`")
@@ -472,25 +422,6 @@ func (p *parser) directive() ast.Stmt {
 	return &ast.Directive{
 		Command: cmd,
 		Raw:     buf.String(),
-	}
-}
-
-// citation = lbrack text rbrack colon string .
-func (p *parser) citation() ast.Stmt {
-	p.next()
-	label := p.str(']', func(r rune) bool { return r == '\\' || r == ']' }, nil)
-	if p.r != ']' {
-		p.errorf("Citation does not have a closing bracket: %s", "["+label)
-	}
-	if p.next() != ':' {
-		return p.paragraph("[" + label + "]")
-	}
-	p.next()
-	src := p.line(nil)
-	p.cite[label] = src
-	return &ast.Citation{
-		Label: label,
-		Src:   src,
 	}
 }
 
@@ -571,4 +502,86 @@ func (p *parser) listItem() (ast.ListItem, error) {
 	p.next()
 	li.Text = p.text(eof)
 	return li, nil
+}
+
+func (p *parser) paragraph(before string) *ast.Paragraph {
+	if len(before) > 0 {
+		rdr := io.MultiReader(strings.NewReader(before+string(p.r)), p.b)
+		p.b = bufio.NewReader(rdr)
+		p.next()
+	}
+	par := ast.Paragraph{
+		Format: nil,
+		Body:   p.line(nil),
+	}
+	return &par
+}
+
+func (p *parser) next() rune {
+	r, size, err := p.b.ReadRune()
+	if err == io.EOF || size == 0 || r == utf8.RuneError {
+		r = eof
+	}
+	p.r = r
+	return r
+}
+
+// str reads all input up to, but not including end.
+// Does not advance pointer in input past end.
+// Calls f to determine whether or not to write.
+func (p *parser) str(end rune, esc, f func(rune) bool) string {
+	var buf strings.Builder
+	for {
+		if p.r == '\\' && esc != nil {
+			p.next()
+			if !esc(p.r) {
+				buf.WriteRune('\\')
+			}
+		}
+		if p.r == end || p.r == eof {
+			break
+		}
+		if f == nil || f(p.r) {
+			buf.WriteRune(p.r)
+		}
+		p.next()
+	}
+	return buf.String()
+}
+
+func escapable(r rune) bool {
+	switch r {
+	case '\\', '#', '`', '-', '*', '[', ']', '(', ')', '_':
+		return true
+	}
+	return false
+}
+
+// citation = lbrack text rbrack colon string .
+func (p *parser) citation() ast.Stmt {
+	p.next()
+	label := p.str(']', func(r rune) bool { return r == '\\' || r == ']' }, nil)
+	if p.r != ']' {
+		p.errorf("Citation does not have a closing bracket: %s", "["+label)
+	}
+	if p.next() != ':' {
+		return p.paragraph("[" + label + "]")
+	}
+	p.next()
+	src := p.line(nil)
+	p.cite[label] = src
+	return &ast.Citation{
+		Label: label,
+		Src:   src,
+	}
+}
+
+func (p *parser) line(esc func(r rune) bool) string {
+	l := p.str('\n', esc, func(r rune) bool { return p.r != '\r' })
+	p.next()
+	return l
+}
+
+func (p *parser) errorf(format string, args ...interface{}) {
+	p.errors = append(p.errors, fmt.Errorf(format, args...))
 }

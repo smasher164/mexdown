@@ -1,3 +1,26 @@
+// MIT License
+
+// Copyright (c) 2018 Akhil Indurti
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Tests for parse.go
 package parse
 
 import (
@@ -19,17 +42,8 @@ func fileEquals(want, got ast.File) bool {
 	if len(want.List) != len(got.List) {
 		return false
 	}
-	if len(want.Errors) != len(got.Errors) {
-		return false
-	}
 	if !reflect.DeepEqual(want.Cite, got.Cite) {
 		if len(want.Cite) != 0 && len(got.Cite) != 0 {
-			return false
-		}
-	}
-	// check error string equality
-	for i := range want.Errors {
-		if want.Errors[i].Error() != got.Errors[i].Error() {
 			return false
 		}
 	}
@@ -166,7 +180,11 @@ func TestOverlap(t *testing.T) {
 		Separator:         " ",
 	}
 	for i, test := range overlapSmall {
-		got := Parse(strings.NewReader(test.in))
+		got, err := Parse(strings.NewReader(test.in))
+		if err != nil {
+			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, litCfg.Sdump(test.want), err.Error())
+			continue
+		}
 		if !fileEquals(test.want, *got) {
 			t.Errorf("case %d, in %q,\nwant %s, \ngot %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got))
 		}
