@@ -24,6 +24,7 @@
 package parse
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -36,6 +37,7 @@ import (
 type smallcase struct {
 	in   string
 	want ast.File
+	werr error
 }
 
 func fileEquals(want, got ast.File) bool {
@@ -87,7 +89,7 @@ var overlapSmall = []smallcase{
 				},
 				Body: "abc***def_ghi***jkl_",
 			},
-		}},
+		}}, nil,
 	},
 	{"*aa**bbb***c*dddd**ee***", ast.File{
 		List: []ast.Stmt{
@@ -97,7 +99,7 @@ var overlapSmall = []smallcase{
 				},
 				Body: "*aa**bbb***c*dddd**ee***",
 			},
-		}},
+		}}, nil,
 	},
 	{"**a_bbb--cc**dddd_e--", ast.File{
 		List: []ast.Stmt{
@@ -109,8 +111,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "**a_bbb--cc**dddd_e--",
 			},
-		},
-	}},
+		}}, nil,
+	},
 	{"*a`b*c`d*", ast.File{
 		List: []ast.Stmt{
 			&ast.Paragraph{
@@ -120,8 +122,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "*a`b*c`d*",
 			},
-		},
-	}},
+		}}, nil,
+	},
 	{"*a[*a`b*c`d*]b*", ast.File{
 		List: []ast.Stmt{
 			&ast.Paragraph{
@@ -133,8 +135,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "*a[*a`b*c`d*]b*",
 			},
-		},
-	}},
+		}}, nil,
+	},
 	{"*a[*a`b*c`d*](url)b*", ast.File{
 		List: []ast.Stmt{
 			&ast.Paragraph{
@@ -146,8 +148,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "*a[*a`b*c`d*](url)b*",
 			},
-		},
-	}},
+		}}, nil,
+	},
 	{"`[`]`", ast.File{
 		List: []ast.Stmt{
 			&ast.Paragraph{
@@ -156,8 +158,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "`[`]`",
 			},
-		},
-	}},
+		}}, nil,
+	},
 	{"_hi[_hello_]bye_", ast.File{
 		List: []ast.Stmt{
 			&ast.Paragraph{
@@ -168,8 +170,8 @@ var overlapSmall = []smallcase{
 				},
 				Body: "_hi[_hello_]bye_",
 			},
-		},
-	}},
+		}}, nil,
+	},
 }
 
 func TestOverlap(t *testing.T) {
@@ -181,18 +183,136 @@ func TestOverlap(t *testing.T) {
 	}
 	for i, test := range overlapSmall {
 		got, err := Parse(strings.NewReader(test.in))
-		if err != nil {
-			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, litCfg.Sdump(test.want), err.Error())
-			continue
-		}
-		if !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s, \ngot %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got))
+		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
+			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
 		}
 	}
 }
 
-func TestEscape(t *testing.T) {
+var escapeSmall = []smallcase{
+	// '\\', '#', '`', '-', '*', '[', ']', '(', ')', '_':
+	/*
+		\c		No \tab
+		\`		\`Not Raw`
+		\\		\\`Raw`
+		\#		\#Not Header
+		\-		\--Not Strikethrough--
+		\*		\***No Format***
+		\[		\[Not Cite]
+		\]		[Not Cite\]
+		\(		[Direct Cite]\(Not Sourced)
+		\)		[Direct Cite](Not Sourced\)
+		\_		\_Not underlined_
+	*/
+	{`No \tab`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `No \tab`,
+			},
+		}}, nil,
+	},
+	{"\\`Not Raw`", ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   "`Not Raw`",
+			},
+		}}, nil,
+	},
+	{"\\\\`Raw`", ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: []ast.Format{
+					ast.Format{Kind: ast.Raw, Beg: 1, End: 5},
+				},
+				Body: "\\`Raw`",
+			},
+		}}, nil,
+	},
+	{`\#Not Header`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `#Not Header`,
+			},
+		}}, nil,
+	},
+	{`\--Not Strikethrough--`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `--Not Strikethrough--`,
+			},
+		}}, nil,
+	},
+	{`\***No Format***`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `***No Format***`,
+			},
+		}}, nil,
+	},
+	{`\[Not Cite]`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `[Not Cite]`,
+			},
+		}}, nil,
+	},
+	{`[Not Cite\]`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `[Not Cite]`,
+			},
+		}}, nil,
+	},
+	{`[Direct Cite]\(Not Sourced)`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: []ast.Format{
+					ast.Format{Kind: ast.Cite, Beg: 0, End: 12},
+				},
+				Body: `[Direct Cite](Not Sourced)`,
+			},
+		}}, nil,
+	},
+	{`[Direct Cite](Not Sourced\)`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: []ast.Format{
+					ast.Format{Kind: ast.Cite, Beg: 0, End: 12},
+				},
+				Body: `[Direct Cite](Not Sourced)`,
+			},
+		}}, nil,
+	},
+	{`\_Not underlined_`, ast.File{
+		List: []ast.Stmt{
+			&ast.Paragraph{
+				Format: nil,
+				Body:   `_Not underlined_`,
+			},
+		}}, nil,
+	},
+}
 
+func TestEscape(t *testing.T) {
+	litCfg := litter.Options{
+		Compact:           true,
+		StripPackageNames: false,
+		HidePrivateFields: false,
+		Separator:         " ",
+	}
+	for i, test := range escapeSmall {
+		got, err := Parse(strings.NewReader(test.in))
+		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
+			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
+		}
+	}
 }
 func TestCombineListItem(t *testing.T) {
 

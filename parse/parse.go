@@ -375,6 +375,9 @@ func (p *parser) text(end rune) ast.Text {
 			}
 		}
 	}
+	if cit[0] > -1 && cit[2] > cit[0] {
+		format = append(format, ast.Format{ast.Cite, tokens[cit[0]].pos, tokens[cit[2]].pos - 1})
+	}
 	// in the last pass emit everything else
 	lowprec(tokens)
 	return ast.Text{
@@ -531,20 +534,29 @@ func (p *parser) next() rune {
 // Calls f to determine whether or not to write.
 func (p *parser) str(end rune, esc, f func(rune) bool) string {
 	var buf strings.Builder
+	var eb strings.Builder
 	for {
+		escaped := false
 		if p.r == '\\' && esc != nil {
+			eb.WriteRune('\\')
 			p.next()
 			if !esc(p.r) {
 				buf.WriteRune('\\')
+			} else {
+				escaped = true
 			}
 		}
-		if p.r == end || p.r == eof {
+		if (p.r == end && !escaped) || p.r == eof {
 			break
 		}
 		if f == nil || f(p.r) {
 			buf.WriteRune(p.r)
+			eb.WriteRune(p.r)
 		}
 		p.next()
+	}
+	if p.r == eof {
+		return eb.String()
 	}
 	return buf.String()
 }
@@ -562,7 +574,7 @@ func (p *parser) citation() ast.Stmt {
 	p.next()
 	label := p.str(']', func(r rune) bool { return r == '\\' || r == ']' }, nil)
 	if p.r != ']' {
-		p.errorf("Citation does not have a closing bracket: %s", "["+label)
+		return p.paragraph("[" + label)
 	}
 	if p.next() != ':' {
 		return p.paragraph("[" + label + "]")
