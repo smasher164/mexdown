@@ -29,7 +29,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smasher164/mexdown/parse"
+	"akhil.cc/mexdown/parse"
 )
 
 type smallcase struct {

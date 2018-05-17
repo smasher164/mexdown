@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package gen
+package gen // import "akhil.cc/mexdown/gen"
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"akhil.cc/mexdown/ast"
 	sq "github.com/kballard/go-shellquote"
-	"github.com/smasher164/mexdown/ast"
 )
 
 // Command holds the cancellation context and Stderr stream for a directive's executed process.

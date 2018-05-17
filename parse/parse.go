@@ -22,7 +22,7 @@
 
 // Package parse implements a scannerless parser mexdown source text.
 // It takes an io.Reader as source, and outputs an *ast.File.
-package parse
+package parse // import "akhil.cc/mexdown/parse"
 
 import (
 	"bufio"
@@ -32,7 +32,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/smasher164/mexdown/ast"
+	"akhil.cc/mexdown/ast"
 )
 
 // Parse returns the corresponding AST structure for the text src.

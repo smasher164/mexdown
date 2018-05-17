@@ -30,8 +30,8 @@ import (
 	"strings"
 	"testing"
 
+	"akhil.cc/mexdown/ast"
 	"github.com/sanity-io/litter"
-	"github.com/smasher164/mexdown/ast"
 )
 
 type smallcase struct {

@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 // Package ast declares the structures used to represent mexdown syntax trees.
-package ast
+package ast // import "akhil.cc/mexdown/ast"
 
 // All Node types implement the Node interface.
 //go:generate sumgen Node = *File | *Header | *Directive | *List | ListItem | *Paragraph | Text

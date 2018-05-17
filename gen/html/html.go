@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 // Package html generates html output from an AST file structure.
-package html
+package html // import "akhil.cc/mexdown/gen/html"
 
 import (
 	"context"
@@ -33,8 +33,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/smasher164/mexdown/ast"
-	"github.com/smasher164/mexdown/gen"
+	"akhil.cc/mexdown/ast"
+	"akhil.cc/mexdown/gen"
 )
 
 type Genner struct {
