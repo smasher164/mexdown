@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 // Tests for parse.go
-package parse
+package parse_test
 
 import (
 	"fmt"
@@ -29,6 +29,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"akhil.cc/mexdown/parse"
 
 	"akhil.cc/mexdown/ast"
 	"github.com/sanity-io/litter"
@@ -182,7 +184,7 @@ func TestOverlap(t *testing.T) {
 		Separator:         " ",
 	}
 	for i, test := range overlapSmall {
-		got, err := Parse(strings.NewReader(test.in))
+		got, err := parse.Parse(strings.NewReader(test.in))
 		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
 			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
 		}
@@ -308,7 +310,7 @@ func TestEscape(t *testing.T) {
 		Separator:         " ",
 	}
 	for i, test := range escapeSmall {
-		got, err := Parse(strings.NewReader(test.in))
+		got, err := parse.Parse(strings.NewReader(test.in))
 		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
 			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
 		}

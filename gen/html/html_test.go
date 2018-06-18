@@ -21,14 +21,14 @@
 // SOFTWARE.
 
 // Tests for html.go
-package html
+package html_test
 
 import (
 	"bytes"
-	"io"
 	"strings"
 	"testing"
 
+	"akhil.cc/mexdown/gen/html"
 	"akhil.cc/mexdown/parse"
 )
 
@@ -52,10 +52,13 @@ func TestEscape(t *testing.T) {
 			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, test.want, err.Error())
 			continue
 		}
-		var buf bytes.Buffer
-		io.Copy(&buf, &Genner{File: f})
-		got := buf.String()
-		if test.want != got {
+		g := html.Gen(f)
+		got, err := g.Output()
+		if err != nil {
+			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, test.want, err.Error())
+			continue
+		}
+		if !bytes.Equal([]byte(test.want), got) {
 			t.Errorf("case %d, in %q,\nwant %s, \ngot %s", i, test.in, test.want, got)
 		}
 	}

@@ -20,48 +20,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package html generates html output from an AST file structure.
+// Package html converts an AST file structure into html output.
+// Text inside raw string literals is automatically escaped.
+// Overlapping format tags in the source are converted into a tree structure.
+// Directives are parsed according to the Bourne shell's word-splitting rules.
+//
+// AST nodes correspond to the following HTML tags:
+// 	Paragraph                   <p></p>
+// 	Header                      <h1></h1>, <h2></h2>, <h3></h3>, <h4></h4>, <h5></h5>, <h6></h6>, <p></p>
+// 	List                        <ul></ul>
+// 	ListItem (bulleted)         <li class="bullet"></li>
+// 	ListItem (labeled)          <li><span></span></li>
+// 	Directive (raw string)      <pre></pre>
+// 	Directive (with command)    Depends on the result of command execution
+// 	Citation                    <a href=""></a>
+// 	Italics                     <em></em>
+// 	Bold                        <strong></strong>
+// 	BoldItalic                  <strong><em></em></strong>
+// 	Underline                   <u></u>
+// 	Strikethrough               <s></s>
+// 	Raw                         <code></code>
 package html // import "akhil.cc/mexdown/gen/html"
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html"
 	"io"
+	"io/ioutil"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
+	"sync"
 
 	"akhil.cc/mexdown/ast"
-	"akhil.cc/mexdown/gen"
+	sq "github.com/kballard/go-shellquote"
 )
 
-type Genner struct {
-	File     *ast.File
-	Ctx      context.Context
-	Stderr   io.Writer
-	out      *syncBuffer
-	launched bool
-	done     uint32
+type syncWriter struct {
+	m sync.Mutex
+	w io.Writer
 }
 
-func (g *Genner) Read(p []byte) (n int, err error) {
-	if !g.launched {
-		g.launched = true
-		g.out = new(syncBuffer)
-		go func() {
-			if _, err := g.WriteTo(g.out); err != nil {
-				g.out.SetError(err)
-			}
-			atomic.StoreUint32(&g.done, 1)
-		}()
-	}
-	// prevent waiting read/writes from eof'ing
-	n, err = g.out.Read(p)
-	if atomic.LoadUint32(&g.done) == 0 && err == io.EOF {
-		err = nil
-	}
+func (s *syncWriter) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	n, err = s.w.Write(p)
 	return
 }
 
@@ -81,20 +87,166 @@ func (c *stickyCountWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (g *Genner) WriteTo(w io.Writer) (n int64, err error) {
-	cw := &stickyCountWriter{0, nil, w}
-	ctx := g.Ctx
+// Generator represents a non-reusable HTML output generator for an *ast.File.
+type Generator struct {
+	// Stdout and Stderr specify the generator's standard output and standard error.
+	//
+	// HTML output will be written to standard out. Standard error is typically only
+	// written by a process run for an *ast.Directive.
+	//
+	// If Stdout == Stderr, at most one goroutine at a time will call Write.
+	Stdout   io.Writer
+	Stderr   io.Writer
+	ctx      context.Context
+	file     *ast.File
+	waitdone chan error
+
+	m     sync.Mutex
+	pipes []io.Closer
+}
+
+// Gen returns the Generator struct to convert the given file into HTML output.
+//
+// It sets only the file in the returned structure.
+func Gen(file *ast.File) *Generator {
+	return &Generator{ctx: context.TODO(), file: file}
+}
+
+// GenContext is like Gen but includes a context.
+//
+// The provided context is used both to halt HTML generation
+// after processing an ast.Stmt, and to kill any processes executed
+// for an *ast.Directive.
+func GenContext(ctx context.Context, file *ast.File) *Generator {
 	if ctx == nil {
-		ctx = context.TODO()
+		panic("nil context")
 	}
-	for i := range g.File.List {
+	return &Generator{ctx: ctx, file: file}
+}
+
+// Start starts the generator but does not wait for it to complete.
+func (g *Generator) Start() error {
+	if g.Stdout == nil {
+		g.Stdout = ioutil.Discard
+	}
+	if g.Stderr == nil {
+		g.Stderr = ioutil.Discard
+	}
+	if g.Stdout == g.Stderr {
+		g.Stdout = &syncWriter{w: g.Stdout}
+		g.Stderr = g.Stdout
+	}
+	g.waitdone = make(chan error)
+	go func() {
+		err := g.gen()
+		for _, p := range g.pipes {
+			p.Close()
+		}
+		g.m.Lock()
+		g.pipes = nil
+		g.m.Unlock()
+		g.waitdone <- err
+	}()
+	return nil
+}
+
+// Wait waits for the generator to complete and finish copying to
+// Stdout and Stderr. It is an error to call Wait before Start
+// has been called.
+//
+// Wait will release any resources associated with the generator.
+func (g *Generator) Wait() error {
+	if g.waitdone == nil {
+		return fmt.Errorf("not started")
+	}
+	// prevent callers to Wait from a deadlock via not waiting for pipes to close
+	g.m.Lock()
+	if g.pipes != nil {
+		g.m.Unlock()
+		return fmt.Errorf("all reads from the pipe have not completed")
+	}
+	g.m.Unlock()
+	err := <-g.waitdone
+	close(g.waitdone)
+	return err
+}
+
+// Run starts the generator and waits for it to complete, returning
+// any errors enountered.
+func (g *Generator) Run() error {
+	if err := g.Start(); err != nil {
+		return err
+	}
+	return g.Wait()
+}
+
+// StdoutPipe returns a pipe that is connected to the generator's
+// standard output.
+//
+// It is invalid to call Wait until all reads from the pipe have completed.
+// For the same reason, it is invalid to call Run when using StdoutPipe.
+func (g *Generator) StdoutPipe() (io.Reader, error) {
+	if g.Stdout != nil {
+		return nil, fmt.Errorf("Stdout already set")
+	}
+	pr, pw := io.Pipe()
+	g.Stdout = pw
+	g.pipes = append(g.pipes, pw)
+	return pr, nil
+}
+
+// StderrPipe returns a pipe that is connected to the generator's
+// standard error.
+//
+// It is invalid to call Wait until all reads from the pipe have completed.
+// For the same reason, it is invalid to call Run when using StderrPipe.
+func (g *Generator) StderrPipe() (io.Reader, error) {
+	if g.Stderr != nil {
+		return nil, fmt.Errorf("Stderr already set")
+	}
+	pr, pw := io.Pipe()
+	g.Stderr = pw
+	g.pipes = append(g.pipes, pw)
+	return pr, nil
+}
+
+// Output runs the generator and returns its standard output.
+func (g *Generator) Output() ([]byte, error) {
+	if g.Stdout != nil {
+		return nil, fmt.Errorf("Stdout already set")
+	}
+	var stdout bytes.Buffer
+	g.Stdout = &stdout
+	err := g.Run()
+	return stdout.Bytes(), err
+}
+
+// CombinedOutput runs the generator and returns its combined
+// standard output and standard error.
+func (g *Generator) CombinedOutput() ([]byte, error) {
+	if g.Stdout != nil {
+		return nil, fmt.Errorf("Stdout already set")
+	}
+	if g.Stderr != nil {
+		return nil, fmt.Errorf("Stderr already set")
+	}
+	var b bytes.Buffer
+	g.Stdout = &b
+	g.Stderr = &b
+	err := g.Run()
+	return b.Bytes(), err
+}
+
+func (g *Generator) gen() error {
+	cw := &stickyCountWriter{0, nil, g.Stdout}
+	for i := range g.file.List {
 		select {
-		case <-ctx.Done():
-			return cw.n, cw.err
+		case <-g.ctx.Done():
+			return cw.err
 		default:
-			switch t := g.File.List[i].(type) {
+			switch t := g.file.List[i].(type) {
 			case *ast.Paragraph:
-				if t.Body != "" {
+				if len(t.Body) != 0 {
 					cw.Write([]byte("<p>"))
 					txt := ast.Text(*t)
 					g.text(&txt, cw)
@@ -113,18 +265,28 @@ func (g *Genner) WriteTo(w io.Writer) (n int64, err error) {
 			case *ast.List:
 				g.list(t, cw)
 			case *ast.Directive:
-				if t.Command == "" {
+				if len(t.Command) == 0 {
 					fmt.Fprintf(cw, "<pre>%s</pre>", html.EscapeString(t.Raw))
 				} else {
-					c := &gen.Command{Ctx: g.Ctx, Stderr: g.Stderr}
-					if err := c.Gen(t, cw); err != nil {
-						return cw.n, err
+					words, err := sq.Split(t.Command)
+					if err != nil {
+						return err
+					}
+					if len(words) == 0 {
+						return fmt.Errorf("No valid commands: '%q'", t.Command)
+					}
+					cmd := exec.CommandContext(g.ctx, words[0], words[1:]...)
+					cmd.Stdin = strings.NewReader(t.Raw)
+					cmd.Stdout = cw
+					cmd.Stderr = g.Stderr
+					if err := cmd.Run(); err != nil {
+						return err
 					}
 				}
 			}
 		}
 	}
-	return cw.n, cw.err
+	return cw.err
 }
 
 func replace(s, r string, pos, width int) string {
@@ -169,7 +331,7 @@ var fstr = [...]string{
 	rawClose:           "</code>",
 }
 
-func (h *Genner) text(t *ast.Text, w io.Writer) (n int, err error) {
+func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 	type repl struct {
 		i     int
 		w     int
@@ -269,7 +431,7 @@ func (h *Genner) text(t *ast.Text, w io.Writer) (n int, err error) {
 			var citation string
 			if t.Body[f.w+offset] != ')' {
 				citation = fmt.Sprintf(fstr[f.kind], t.Body[f.i+offset+1:f.w+offset])
-			} else if hSrc, ok := h.File.Cite[src]; ok {
+			} else if hSrc, ok := g.file.Cite[src]; ok {
 				hSrc = strings.TrimSpace(hSrc)
 				citation = fmt.Sprintf(fstr[f.kind], hSrc)
 			} else {
@@ -293,7 +455,7 @@ func (h *Genner) text(t *ast.Text, w io.Writer) (n int, err error) {
 	return w.Write([]byte(t.Body))
 }
 
-func (h *Genner) list(l *ast.List, w io.Writer) error {
+func (g *Generator) list(l *ast.List, w io.Writer) error {
 	currTab := 0
 	w.Write([]byte("<ul>"))
 	for _, li := range l.Items {
@@ -307,13 +469,13 @@ func (h *Genner) list(l *ast.List, w io.Writer) error {
 			w.Write([]byte("</ul>"))
 			diffTab++
 		}
-		if li.Label != "" {
+		if len(li.Label) != 0 {
 			w.Write([]byte("<li>"))
 			fmt.Fprintf(w, "<span>%s</span>", li.Label)
 		} else {
 			w.Write([]byte("<li class=\"bullet\">"))
 		}
-		h.text(&li.Text, w)
+		g.text(&li.Text, w)
 		w.Write([]byte("</li>"))
 	}
 	for currTab >= 0 {

@@ -24,12 +24,14 @@
 package ast // import "akhil.cc/mexdown/ast"
 
 // All Node types implement the Node interface.
+//
 //go:generate sumgen Node = *File | *Header | *Directive | *List | ListItem | *Paragraph | Text
 type Node interface {
 	node()
 }
 
 // All statement nodes implement the Stmt interface.
+//
 //go:generate sumgen Stmt = *Header | *Directive | *List | *Paragraph | *Citation
 type Stmt interface {
 	Node
