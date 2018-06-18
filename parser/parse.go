@@ -307,7 +307,7 @@ func (p *parser) text(end rune) ast.Text {
 				ib = i
 			}
 			if ib < i {
-				format = append(format, ast.Format{ast.Raw, tokens[ib].pos, tokens[i].pos})
+				format = append(format, ast.Format{Kind: ast.Raw, Beg: tokens[ib].pos, End: tokens[i].pos})
 				disp := len(tokens)
 				tokens = append(tokens[:ib], tokens[i+1:]...)
 				disp -= len(tokens)
@@ -327,7 +327,7 @@ func (p *parser) text(end rune) ast.Text {
 					idx[0] = i
 				}
 				if idx[0] < i {
-					format = append(format, ast.Format{ast.Italic, tokens[idx[0]].pos, tokens[i].pos})
+					format = append(format, ast.Format{Kind: ast.Italic, Beg: tokens[idx[0]].pos, End: tokens[i].pos})
 					idx[0] = -1
 					idx[1] = -1
 					idx[2] = -1
@@ -337,7 +337,7 @@ func (p *parser) text(end rune) ast.Text {
 					idx[1] = i
 				}
 				if idx[1] < i {
-					format = append(format, ast.Format{ast.Bold, tokens[idx[1]].pos, tokens[i].pos})
+					format = append(format, ast.Format{Kind: ast.Bold, Beg: tokens[idx[1]].pos, End: tokens[i].pos})
 					idx[0] = -1
 					idx[1] = -1
 					idx[2] = -1
@@ -347,7 +347,7 @@ func (p *parser) text(end rune) ast.Text {
 					idx[2] = i
 				}
 				if idx[2] < i {
-					format = append(format, ast.Format{ast.BoldItalic, tokens[idx[2]].pos, tokens[i].pos})
+					format = append(format, ast.Format{Kind: ast.BoldItalic, Beg: tokens[idx[2]].pos, End: tokens[i].pos})
 					idx[0] = -1
 					idx[1] = -1
 					idx[2] = -1
@@ -357,7 +357,7 @@ func (p *parser) text(end rune) ast.Text {
 					idx[3] = i
 				}
 				if idx[3] < i {
-					format = append(format, ast.Format{ast.Strikethrough, tokens[idx[3]].pos, tokens[i].pos})
+					format = append(format, ast.Format{Kind: ast.Strikethrough, Beg: tokens[idx[3]].pos, End: tokens[i].pos})
 					idx[3] = -1
 				}
 			case "_":
@@ -365,7 +365,7 @@ func (p *parser) text(end rune) ast.Text {
 					idx[4] = i
 				}
 				if idx[4] < i {
-					format = append(format, ast.Format{ast.Underline, tokens[idx[4]].pos, tokens[i].pos})
+					format = append(format, ast.Format{Kind: ast.Underline, Beg: tokens[idx[4]].pos, End: tokens[i].pos})
 					idx[4] = -1
 				}
 			}
@@ -392,7 +392,7 @@ func (p *parser) text(end rune) ast.Text {
 				cit[1] = i
 			}
 			if cit[0] != -1 {
-				format = append(format, ast.Format{ast.Cite, tokens[cit[0]].pos, tokens[i].pos})
+				format = append(format, ast.Format{Kind: ast.Cite, Beg: tokens[cit[0]].pos, End: tokens[i].pos})
 				// we can now parse the inside of the brackets
 				subtok := tokens[cit[0] : i+1]
 				lowprec(subtok)
@@ -415,7 +415,7 @@ func (p *parser) text(end rune) ast.Text {
 				cit[3] = i
 			}
 			if cit[0] != -1 && cit[2] != -1 {
-				format = append(format, ast.Format{ast.Cite, tokens[cit[0]].pos, tokens[i].pos})
+				format = append(format, ast.Format{Kind: ast.Cite, Beg: tokens[cit[0]].pos, End: tokens[i].pos})
 				subtok := tokens[cit[0] : cit[2]+1]
 				lowprec(subtok)
 				disp := len(tokens)
@@ -429,7 +429,7 @@ func (p *parser) text(end rune) ast.Text {
 		}
 	}
 	if cit[0] > -1 && cit[2] > cit[0] {
-		format = append(format, ast.Format{ast.Cite, tokens[cit[0]].pos, tokens[cit[2]].pos - 1})
+		format = append(format, ast.Format{Kind: ast.Cite, Beg: tokens[cit[0]].pos, End: tokens[cit[2]].pos - 1})
 	}
 	// in the last pass emit everything else
 	lowprec(tokens)
