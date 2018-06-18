@@ -29,7 +29,7 @@ import (
 	"testing"
 
 	"akhil.cc/mexdown/gen/html"
-	"akhil.cc/mexdown/parse"
+	"akhil.cc/mexdown/parser"
 )
 
 type smallcase struct {
@@ -47,12 +47,8 @@ var escapeSmall = []smallcase{
 
 func TestEscape(t *testing.T) {
 	for i, test := range escapeSmall {
-		f, err := parse.Parse(strings.NewReader(test.in))
-		if err != nil {
-			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, test.want, err.Error())
-			continue
-		}
-		g := html.Gen(f)
+		file := parser.MustParse(strings.NewReader(test.in))
+		g := html.Gen(file)
 		got, err := g.Output()
 		if err != nil {
 			t.Errorf("case %d, in %q,\nwant %s, \ngot error %s", i, test.in, test.want, err.Error())

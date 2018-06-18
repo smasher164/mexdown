@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"akhil.cc/mexdown/gen/html"
-	"akhil.cc/mexdown/parse"
+	"akhil.cc/mexdown/parser"
 )
 
 func ExampleGen() {
@@ -41,10 +41,7 @@ func ExampleGen() {
 This is a paragraph.
 *something something Gopher...*
 `
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	g := html.Gen(file)
 	var out bytes.Buffer
 	g.Stdout = &out
@@ -62,10 +59,7 @@ func ExampleGenContext() {
 	src := "The following is a directive:\n```" +
 		`sh -c "for i in {1..5}; do echo $i; sleep 1; done"` +
 		"\n```"
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -83,19 +77,16 @@ func ExampleGenerator_Start() {
 	src := "The following is a directive:\n" +
 		"```sh -c \"for i in {1..5}; do echo $i; sleep 1; done\"\n" +
 		"```"
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	g := html.Gen(file)
 	var out bytes.Buffer
 	g.Stdout = &out
 
-	if err = g.Start(); err != nil {
+	if err := g.Start(); err != nil {
 		log.Fatal(err)
 	}
 	log.Print("Waiting for generator to finish...")
-	err = g.Wait()
+	err := g.Wait()
 	log.Printf("Generator finished with error: %v", err)
 	fmt.Printf("%s\n", out.String())
 }
@@ -104,15 +95,12 @@ func ExampleGenerator_Run() {
 	src := "This document simply displays the date when compiled:\n" +
 		"```date\n" +
 		"```"
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	g := html.Gen(file)
 	var out bytes.Buffer
 	g.Stdout = &out
 
-	err = g.Run()
+	err := g.Run()
 	log.Printf("Generator finished with error: %v", err)
 	fmt.Printf("%s\n", out.String())
 }
@@ -122,23 +110,20 @@ func ExampleGenerator_StdoutPipe() {
 This is a paragraph.
 *something something Gopher...*
 `
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	g := html.Gen(file)
 	stdout, err := g.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = g.Start(); err != nil {
+	if err := g.Start(); err != nil {
 		log.Fatal(err)
 	}
 	b, _ := ioutil.ReadAll(stdout)
 	fmt.Printf("%s\n", b)
 
-	if err = g.Wait(); err != nil {
+	if err := g.Wait(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -146,23 +131,20 @@ This is a paragraph.
 func ExampleGenerator_StderrPipe() {
 	src := "```sh -c \"echo standard output; echo standard error 1>&2\"\n" +
 		"```"
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	g := html.Gen(file)
 	stderr, err := g.StderrPipe()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = g.Start(); err != nil {
+	if err := g.Start(); err != nil {
 		log.Fatal(err)
 	}
 	b, _ := ioutil.ReadAll(stderr)
 	fmt.Printf("Stderr: %s\n", b)
 
-	if err = g.Wait(); err != nil {
+	if err := g.Wait(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -172,10 +154,7 @@ func ExampleGenerator_Output() {
 This is a paragraph.
 *something something Gopher...*
 `
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	b, err := html.Gen(file).Output()
 	if err != nil {
 		log.Fatal(err)
@@ -189,10 +168,7 @@ This is a paragraph.
 func ExampleGenerator_CombinedOutput() {
 	src := "```sh -c \"echo standard output; echo standard error 1>&2\"\n" +
 		"```"
-	file, err := parse.Parse(strings.NewReader(src))
-	if err != nil {
-		log.Fatal(err)
-	}
+	file := parser.MustParse(strings.NewReader(src))
 	b, err := html.Gen(file).CombinedOutput()
 	if err != nil {
 		log.Fatal(err)

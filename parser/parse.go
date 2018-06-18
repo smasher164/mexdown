@@ -20,9 +20,52 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package parse implements a scannerless parser mexdown source text.
-// It takes an io.Reader as source, and outputs an *ast.File.
-package parse // import "akhil.cc/mexdown/parse"
+// Package parser implements a parser for mexdown source. It takes in an io.Reader
+// as input and outputs an *ast.File.
+//
+// It is the responsibility of the generator to parse
+// commands attached to directive nodes.
+//
+// The parser adheres to the following grammar for mexdown source files:
+//
+// 		unicode_char = /* an arbitrary Unicode code point except newline */ .
+// 		newline      = /* the Unicode code point U+000A */ .
+// 		tab          = /* the Unicode code point U+0009 */ .
+// 		octothorpe   = /* the Unicode code point U+0023 */ .
+// 		backtick     = /* the Unicode code point U+0060 */ .
+// 		hyphen       = /* the Unicode code point U+002D */ .
+// 		asterisk     = /* the Unicode code point U+002A */ .
+// 		lbrack       = /* the Unicode code point U+005B */ .
+// 		rbrack       = /* the Unicode code point U+005D */ .
+// 		lparen       = /* the Unicode code point U+0028 */ .
+// 		rparen       = /* the Unicode code point U+0029 */ .
+// 		underscore   = /* the Unicode code point U+005F */ .
+// 		colon        = /* the Unicode code point U+003A */ .
+//
+// 		citation = lbrack text rbrack colon string .
+// 		paragraph = text .
+// 		list_item = { tab } hyphen [ lbrack text rbrack ] text .
+// 		list = { list_item newline } [ list_item ] .
+// 		string = { unicode_char | newline } .
+// 		command = unicode_char { unicode_char } .
+// 		dirbody = backtick dirbody backtick | [ command ] newline string .
+// 		directive = backtick backtick backtick dirbody backtick backtick backtick .
+// 		text = unicode_char { unicode_char } |
+// 		       lbrack text rbrack lparen text rparen |
+// 		       asterisk text asterisk |
+// 		       asterisk asterisk text asterisk asterisk |
+// 		       underscore text underscore |
+// 		       hyphen hyphen text hyphen hyphen |
+// 		       backtick text backtick .
+// 		header = octothorpe { octothorpe } text .
+// 		statement = header | directive | list | paragraph | citation .
+// 		source_file = { statement [ newline ] [ newline ] } .
+//
+// In the relevant context, the following characters are escaped (in Go syntax):
+//
+// 		'\\', '#', '`', '-', '*', '[', ']', '(', ')', '_'
+//
+package parser // import "akhil.cc/mexdown/parser"
 
 import (
 	"bufio"
@@ -35,7 +78,17 @@ import (
 	"akhil.cc/mexdown/ast"
 )
 
-// Parse returns the corresponding AST structure for the text src.
+// MustParse is like Parse but panics if the source cannot be parsed.
+func MustParse(src io.Reader) (file *ast.File) {
+	f, err := Parse(src)
+	if err != nil {
+		panic("Parse error: " + err.Error())
+	}
+	return f
+}
+
+// Parse parses the source and if successful, returns its corresponding AST structure.
+// A generator can be used to transform the returned AST into another format.
 func Parse(src io.Reader) (f *ast.File, err error) {
 	p := &parser{
 		errors: []error{},

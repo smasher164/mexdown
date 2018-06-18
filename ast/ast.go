@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package ast declares the structures used to represent mexdown syntax trees.
+// Package ast declares structures used to represent mexdown syntax trees.
 package ast // import "akhil.cc/mexdown/ast"
 
 // All Node types implement the Node interface.
