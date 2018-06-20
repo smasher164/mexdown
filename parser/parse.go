@@ -490,6 +490,7 @@ func (p *parser) list() (*ast.List, ast.Stmt) {
 	)
 	for e != notList {
 		li, e = p.listItem()
+		// fmt.Println("called", li)
 		if e == notList {
 			break
 		}
@@ -516,6 +517,7 @@ func (p *parser) listItem() (ast.ListItem, error) {
 		li.NTab++
 		p.next()
 	}
+	// fmt.Println("p.r", string(p.r))
 	if p.r != '-' {
 		for i := 0; i < li.NTab; i++ {
 			li.Text.Body += "\t"
@@ -538,20 +540,18 @@ func (p *parser) listItem() (ast.ListItem, error) {
 		}
 		p.next()
 	}
-	ln := p.line(nil) + "\n"
+	ln := p.line(nil) // w/o '\n' at the end
 	// Combine consecutive list items
 	for {
-		l := p.line(nil) + "\n"
+		l := p.line(nil) // w/o '\n' at the end
 		tr := strings.TrimSpace(l)
-		if len(tr) == 0 {
-			ln += string(eof)
+		if len(tr) == 0 || tr[0] == '-' {
+			// new list or new item
+			ln += string(eof) + l + "\n"
 			break
 		}
-		if tr[0] == '-' {
-			ln += string(eof) + l
-			break
-		}
-		ln += l
+		// same item
+		ln += " " + l
 	}
 	rdr := io.MultiReader(strings.NewReader(ln+string(p.r)), p.b)
 	p.b = bufio.NewReader(rdr)
