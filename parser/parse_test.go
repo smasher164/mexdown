@@ -567,7 +567,7 @@ var unicodeSmall = []smallcase{
 					{Kind: ast.Underline, Beg: 165, End: 180},
 					{Kind: ast.Strikethrough, Beg: 183, End: 211},
 					{Kind: ast.Raw, Beg: 213, End: 232},
-				}, // for now
+				},
 				Body: telugu,
 			}},
 	}, nil},
@@ -583,7 +583,7 @@ var unicodeSmall = []smallcase{
 					{Kind: ast.Underline, Beg: 123, End: 148},
 					{Kind: ast.Strikethrough, Beg: 151, End: 180},
 					{Kind: ast.Raw, Beg: 182, End: 201},
-				}, // for now
+				},
 				Body: arabic,
 			}},
 	}, nil},
@@ -599,7 +599,7 @@ var unicodeSmall = []smallcase{
 					{Kind: ast.Underline, Beg: 135, End: 160},
 					{Kind: ast.Strikethrough, Beg: 163, End: 182},
 					{Kind: ast.Raw, Beg: 184, End: 201},
-				}, // for now
+				},
 				Body: hebrew,
 			}},
 	}, nil},
@@ -615,7 +615,7 @@ var unicodeSmall = []smallcase{
 					{Kind: ast.Underline, Beg: 66, End: 73},
 					{Kind: ast.Strikethrough, Beg: 76, End: 87},
 					{Kind: ast.Raw, Beg: 89, End: 100},
-				}, // for now
+				},
 				Body: chinese_simplified,
 			}},
 	}, nil},
