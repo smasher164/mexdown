@@ -81,6 +81,43 @@ func fileEquals(want, got ast.File) bool {
 	return true
 }
 
+func TestSmall(t *testing.T) {
+	tests := []struct {
+		name  string
+		cases []smallcase
+	}{
+		{"Overlap", overlapSmall},
+		{"Escape", escapeSmall},
+		{"CombineListItem", combineListItem},
+		{"CombineParagraph", combineParagraph},
+		{"Unicode", unicodeSmall},
+	}
+	litCfg := litter.Options{
+		Compact:           true,
+		StripPackageNames: false,
+		HidePrivateFields: false,
+		Separator:         " ",
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for i, tc := range test.cases {
+				got, err := parser.Parse(strings.NewReader(tc.in))
+				wes, es := fmt.Sprint(tc.werr), fmt.Sprint(err)
+				if es != wes || !fileEquals(tc.want, *got) {
+					t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s",
+						i,
+						tc.in,
+						litCfg.Sdump(tc.want),
+						litCfg.Sdump(*got),
+						wes,
+						es,
+					)
+				}
+			}
+		})
+	}
+}
+
 var overlapSmall = []smallcase{
 	{"abc***def_ghi***jkl_", ast.File{
 		List: []ast.Stmt{
@@ -174,21 +211,6 @@ var overlapSmall = []smallcase{
 			},
 		}}, nil,
 	},
-}
-
-func TestOverlap(t *testing.T) {
-	litCfg := litter.Options{
-		Compact:           true,
-		StripPackageNames: false,
-		HidePrivateFields: false,
-		Separator:         " ",
-	}
-	for i, test := range overlapSmall {
-		got, err := parser.Parse(strings.NewReader(test.in))
-		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
-		}
-	}
 }
 
 var escapeSmall = []smallcase{
@@ -302,21 +324,6 @@ var escapeSmall = []smallcase{
 	},
 }
 
-func TestEscape(t *testing.T) {
-	litCfg := litter.Options{
-		Compact:           true,
-		StripPackageNames: false,
-		HidePrivateFields: false,
-		Separator:         " ",
-	}
-	for i, test := range escapeSmall {
-		got, err := parser.Parse(strings.NewReader(test.in))
-		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
-		}
-	}
-}
-
 var combineListItem = []smallcase{
 	{`- Single Line
 - This text is
@@ -364,21 +371,6 @@ lines.
 	},
 }
 
-func TestCombineListItem(t *testing.T) {
-	litCfg := litter.Options{
-		Compact:           true,
-		StripPackageNames: false,
-		HidePrivateFields: false,
-		Separator:         " ",
-	}
-	for i, test := range combineListItem {
-		got, err := parser.Parse(strings.NewReader(test.in))
-		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
-		}
-	}
-}
-
 var combineParagraph = []smallcase{
 	{`First line.
 Second line.`, ast.File{
@@ -410,21 +402,6 @@ Second line.
 			}},
 		}}, nil,
 	},
-}
-
-func TestCombineParagraph(t *testing.T) {
-	litCfg := litter.Options{
-		Compact:           true,
-		StripPackageNames: false,
-		HidePrivateFields: false,
-		Separator:         " ",
-	}
-	for i, test := range combineParagraph {
-		got, err := parser.Parse(strings.NewReader(test.in))
-		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
-		}
-	}
 }
 
 const (
@@ -632,19 +609,4 @@ var unicodeSmall = []smallcase{
 		List: []ast.Stmt{
 			&ast.Paragraph{Body: emoji_u70}},
 	}, nil},
-}
-
-func TestUnicode(t *testing.T) {
-	litCfg := litter.Options{
-		Compact:           true,
-		StripPackageNames: false,
-		HidePrivateFields: false,
-		Separator:         " ",
-	}
-	for i, test := range unicodeSmall {
-		got, err := parser.Parse(strings.NewReader(test.in))
-		if wes, es := fmt.Sprint(test.werr), fmt.Sprint(err); es != wes || !fileEquals(test.want, *got) {
-			t.Errorf("case %d, in %q,\nwant %s,\ngot %s,\nwant err %s,\ngot err %s", i, test.in, litCfg.Sdump(test.want), litCfg.Sdump(*got), wes, es)
-		}
-	}
 }
