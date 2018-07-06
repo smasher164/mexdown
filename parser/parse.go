@@ -298,7 +298,8 @@ func (p *parser) text(end rune) ast.Text {
 
 	// highest precedence is raw,
 	// so you can do a pass to eliminate everything that is between raw tags
-	// 	if there is an odd number of backtick characters, then the last backtick character is not a delimeter for a raw tag
+	// 	if there is an odd number of backtick characters, then the last backtick
+	//    character is not a delimeter for a raw tag
 	// 	you can append these format asts then
 	ib := -1
 	for i := 0; i < len(tokens); i++ {
