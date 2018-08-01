@@ -1,0 +1,5 @@
+language: go
+go:
+  - "1.10"
+  - master
+go_import_path: akhil.cc/mexdown
