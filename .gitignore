@@ -6,6 +6,7 @@
 # Whitelist the following extensions
 !*.go
 !*.md
+!*.png
 !.gitignore
 !.travis.yml
 

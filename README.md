@@ -48,7 +48,7 @@ out, err := html.Gen(file).Output()
 
 produces the following HTML document
 
-![A graph embedded in an HTML document](https://lh3.googleusercontent.com/OV8TUBGbmJnjrYWXqIa2mDb9aOK-sbBotMU_zACIees0DHi3bvgjGD7mnlnp0evREdflqgk6VBODzLq6Pd7n0cLrQnH_r-4dYZa0Bm8xs6zwAS43r2534y4V90OEyk_r3TXh0KcS2PdLNrJusfk8PGfzC8e0BjJQZT_cEXoj9Qe-8zMQOS9MsihPF9U7EN-Xrv3f2qp_dGsPygj9Zzmwjj7JxZ8nYDkPLxl9dsaHzYb4YFd8sbaEyZLyNjMo3X4g3v6Uy298TeZngoVeTLUk1DegEKNHVKOf11L4fdMOLV6EWhZSZ19Uf7-EKOUBv3o09QpuiUz87-dK0C2PjVkTeV1pyIsblnYWcbRtz6QRj8acX5x-k3_v9SVPImmIT52OYebVqYL3CFGRdDr5zmi6H-Rq0d9pL4gQC3L_ip6hS-NeAIOn9iqXektmAki7iIT1hMcmchffAWpiQagTanB7cGtjjuv3YdKk8Np3F9EmIyX3o7q8al03QNNLvTCUTgPRWmzeo6m85TWA48LF_5voWR7oe_RGvWCGXeB92HVNRJCmzxomaL00XZNC4mAUYp16pIHqi92Yvw05mQrbDdWgi_7l67W9N36wZCBN6TI=w375-h270-no "Graph Example")
+![A graph embedded in an HTML document](doc/mexdown_graph_example.png "Graph Example")
 
 Directives enable a powerful way to control document generation, without building in new language features into markdown itself. As long as the command reads from STDIN and writes to STDOUT, you can
 - Embed mathematical equations.
