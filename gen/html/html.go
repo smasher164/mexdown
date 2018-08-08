@@ -315,8 +315,8 @@ const (
 )
 
 var fstr = [...]string{
-	cite:               "<a href=%q>",
-	citeClose:          "</a>",
+	anchor:               "<a href=%q>",
+	anchorClose:          "</a>",
 	italics:            "<em>",
 	italicsClose:       "</em>",
 	bold:               "<strong>",
@@ -327,8 +327,8 @@ var fstr = [...]string{
 	underlineClose:     "</u>",
 	strikethrough:      "<s>",
 	strikethroughClose: "</s>",
-	raw:                "<code>",
-	rawClose:           "</code>",
+	code:                "<code>",
+	codeClose:           "</code>",
 }
 
 func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
