@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 // Package html converts an AST file structure into html output.
-// Text inside code string literals is automatically escaped.
+// Text inside code segments is automatically escaped.
 // Overlapping format tags in the source are converted into a tree structure.
 // Directives are parsed according to the Bourne shell's word-splitting rules.
 //
@@ -31,7 +31,7 @@
 // 	List                        <ul></ul>
 // 	ListItem (bulleted)         <li class="bullet"></li>
 // 	ListItem (labeled)          <li><span></span></li>
-// 	Directive (code string)      <pre></pre>
+// 	Directive (raw string)      <pre></pre>
 // 	Directive (with command)    Depends on the result of command execution
 // 	Citation                    <a href=""></a>
 // 	Italics                     <em></em>
@@ -39,7 +39,7 @@
 // 	BoldItalic                  <strong><em></em></strong>
 // 	Underline                   <u></u>
 // 	Strikethrough               <s></s>
-// 	Raw                         <code></code>
+// 	Code Segment                <code></code>
 package html // import "akhil.cc/mexdown/gen/html"
 
 import (
