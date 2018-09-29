@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 // Package html converts an AST file structure into html output.
-// Text inside raw string literals is automatically escaped.
+// Text inside code segments is automatically escaped.
 // Overlapping format tags in the source are converted into a tree structure.
 // Directives are parsed according to the Bourne shell's word-splitting rules.
 //
@@ -39,7 +39,7 @@
 // 	BoldItalic                  <strong><em></em></strong>
 // 	Underline                   <u></u>
 // 	Strikethrough               <s></s>
-// 	Raw                         <code></code>
+// 	Code Segment                <code></code>
 package html // import "akhil.cc/mexdown/gen/html"
 
 import (
@@ -298,8 +298,8 @@ func open(tag int) bool {
 }
 
 const (
-	cite = iota
-	citeClose
+	anchor = iota
+	anchorClose
 	italics
 	italicsClose
 	bold
@@ -310,13 +310,13 @@ const (
 	underlineClose
 	strikethrough
 	strikethroughClose
-	raw
-	rawClose
+	code
+	codeClose
 )
 
 var fstr = [...]string{
-	cite:               "<a href=%q>",
-	citeClose:          "</a>",
+	anchor:               "<a href=%q>",
+	anchorClose:          "</a>",
 	italics:            "<em>",
 	italicsClose:       "</em>",
 	bold:               "<strong>",
@@ -327,8 +327,8 @@ var fstr = [...]string{
 	underlineClose:     "</u>",
 	strikethrough:      "<s>",
 	strikethroughClose: "</s>",
-	raw:                "<code>",
-	rawClose:           "</code>",
+	code:                "<code>",
+	codeClose:           "</code>",
 }
 
 func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
@@ -349,7 +349,7 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 	old := 0
 	sort.Slice(t.Format, func(i, j int) bool { return t.Format[i].End < t.Format[j].End })
 	for i, f := range t.Format {
-		// escape raw text
+		// escape code text
 		if f.Kind == ast.Raw {
 			beg := f.Beg + offset
 			end := f.End + offset
@@ -374,12 +374,12 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 	for _, f := range t.Format {
 		switch f.Kind {
 		case ast.Cite:
-			rep = append(rep, repl{f.Beg, f.End, cite, 0})
+			rep = append(rep, repl{f.Beg, f.End, anchor, 0})
 			begClose := f.Beg
 			if t.Body[f.End] == ')' {
 				begClose += strings.Index(t.Body[f.Beg:], "](")
 			}
-			rep = append(rep, repl{f.End, f.End, citeClose, begClose})
+			rep = append(rep, repl{f.End, f.End, anchorClose, begClose})
 		case ast.Italic:
 			rep = append(rep, repl{f.Beg, 1, italics, 0})
 			rep = append(rep, repl{f.End, 1, italicsClose, 0})
@@ -396,8 +396,8 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 			rep = append(rep, repl{f.Beg, 2, strikethrough, 0})
 			rep = append(rep, repl{f.End, 2, strikethroughClose, 0})
 		case ast.Raw:
-			rep = append(rep, repl{f.Beg, 1, raw, 0})
-			rep = append(rep, repl{f.End, 1, rawClose, 0})
+			rep = append(rep, repl{f.Beg, 1, code, 0})
+			rep = append(rep, repl{f.End, 1, codeClose, 0})
 		}
 	}
 	sort.Slice(rep, func(i, j int) bool { return rep[i].i < rep[j].i })
@@ -409,7 +409,7 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 			// Walk backwards through list
 			for lower := current - 1; lower >= bottom; lower-- {
 				// Find first opening tag that does not match closing
-				if rep[lower].kind != cite && open(rep[lower].kind) && (rep[current].kind-rep[lower].kind) != 1 {
+				if rep[lower].kind != anchor && open(rep[lower].kind) && (rep[current].kind-rep[lower].kind) != 1 {
 					rlower := rep[lower]
 					rcurr := rep[current]
 					// Insert its closing tag before our unmatched tag
@@ -425,7 +425,7 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 	offset = 0
 	for _, f := range rep {
 		switch f.kind {
-		case cite:
+		case anchor:
 			del := strings.Index(t.Body[f.i+offset:], "](") + f.i + offset
 			src := t.Body[del+2 : f.w+offset]
 			var citation string
@@ -439,7 +439,7 @@ func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
 			}
 			t.Body = replace(t.Body, citation, f.i+offset, 1)
 			offset += len(citation) - 1
-		case citeClose:
+		case anchorClose:
 			if t.Body[f.w+offset] == ')' {
 				t.Body = replace(t.Body, fstr[f.kind], f.extra+offset, f.w-f.extra+1)
 				offset += len(fstr[f.kind]) - (f.w - f.extra + 1)
