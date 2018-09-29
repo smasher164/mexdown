@@ -52,7 +52,8 @@ This is a paragraph.
 	fmt.Printf("%s\n", out.String())
 	// Output:
 	// <h1> Heading 1</h1><p>This is a paragraph.
-	// <em>something something Gopher...</em></p>
+	// <em>something something Gopher...</em>
+	// </p>
 }
 
 func ExampleGenContext() {
@@ -162,7 +163,8 @@ This is a paragraph.
 	fmt.Printf("%s\n", b)
 	// Output:
 	// <h1> Heading 1</h1><p>This is a paragraph.
-	// <em>something something Gopher...</em></p>
+	// <em>something something Gopher...</em>
+	// </p>
 }
 
 func ExampleGenerator_CombinedOutput() {
