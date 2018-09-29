@@ -389,14 +389,14 @@ Second line.`, ast.File{
 
 Second line.`, ast.File{
 		List: []ast.Stmt{
-			&ast.Paragraph{Body: "First line.\nSecond line."},
+			&ast.Paragraph{Body: "First line.\n\nSecond line."},
 		}}, nil,
 	},
 	{`First line.
 Second line.
 - list item`, ast.File{
 		List: []ast.Stmt{
-			&ast.Paragraph{Body: "First line.\nSecond line."},
+			&ast.Paragraph{Body: "First line.\nSecond line.\n"},
 			&ast.List{Items: []ast.ListItem{
 				{Text: ast.Text{Body: " list item"}},
 			}},

@@ -28,42 +28,42 @@
 //
 // The parser adheres to the following grammar for mexdown source files:
 //
-// 		unicode_char = /* an arbitrary Unicode code point except newline */ .
-// 		newline      = /* the Unicode code point U+000A */ .
-// 		tab          = /* the Unicode code point U+0009 */ .
-// 		octothorpe   = /* the Unicode code point U+0023 */ .
-// 		backtick     = /* the Unicode code point U+0060 */ .
-// 		hyphen       = /* the Unicode code point U+002D */ .
-// 		asterisk     = /* the Unicode code point U+002A */ .
-// 		lbrack       = /* the Unicode code point U+005B */ .
-// 		rbrack       = /* the Unicode code point U+005D */ .
-// 		lparen       = /* the Unicode code point U+0028 */ .
-// 		rparen       = /* the Unicode code point U+0029 */ .
-// 		underscore   = /* the Unicode code point U+005F */ .
-// 		colon        = /* the Unicode code point U+003A */ .
+//      unicode_char = /* an arbitrary Unicode code point except newline */ .
+//      newline      = /* the Unicode code point U+000A */ .
+//      tab          = /* the Unicode code point U+0009 */ .
+//      octothorpe   = /* the Unicode code point U+0023 */ .
+//      backtick     = /* the Unicode code point U+0060 */ .
+//      hyphen       = /* the Unicode code point U+002D */ .
+//      asterisk     = /* the Unicode code point U+002A */ .
+//      lbrack       = /* the Unicode code point U+005B */ .
+//      rbrack       = /* the Unicode code point U+005D */ .
+//      lparen       = /* the Unicode code point U+0028 */ .
+//      rparen       = /* the Unicode code point U+0029 */ .
+//      underscore   = /* the Unicode code point U+005F */ .
+//      colon        = /* the Unicode code point U+003A */ .
 //
-// 		citation = lbrack text rbrack colon string .
-// 		paragraph = text .
-// 		list_item = { tab } hyphen [ lbrack text rbrack ] text .
-// 		list = { list_item newline } [ list_item ] .
-// 		string = { unicode_char | newline } .
-// 		command = unicode_char { unicode_char } .
-// 		dirbody = backtick dirbody backtick | [ command ] newline string .
-// 		directive = backtick backtick backtick dirbody backtick backtick backtick .
-// 		text = unicode_char { unicode_char } |
-// 		       lbrack text rbrack lparen text rparen |
-// 		       asterisk text asterisk |
-// 		       asterisk asterisk text asterisk asterisk |
-// 		       underscore text underscore |
-// 		       hyphen hyphen text hyphen hyphen |
-// 		       backtick text backtick .
-// 		header = octothorpe { octothorpe } text .
-// 		statement = header | directive | list | paragraph | citation .
-// 		source_file = { statement [ newline ] [ newline ] } .
+//      citation = lbrack text rbrack colon string .
+//      paragraph = text .
+//      list_item = { tab } hyphen [ lbrack text rbrack ] text .
+//      list = { list_item newline } [ list_item ] .
+//      string = { unicode_char | newline } .
+//      command = unicode_char { unicode_char } .
+//      dirbody = backtick dirbody backtick | [ command ] newline string .
+//      directive = backtick backtick backtick dirbody backtick backtick backtick .
+//      text = unicode_char { unicode_char } |
+//             lbrack text rbrack lparen text rparen |
+//             asterisk text asterisk |
+//             asterisk asterisk text asterisk asterisk |
+//             underscore text underscore |
+//             hyphen hyphen text hyphen hyphen |
+//             backtick text backtick .
+//      header = octothorpe { octothorpe } text .
+//      statement = header | directive | list | paragraph | citation .
+//      source_file = { statement [ newline ] [ newline ] } .
 //
 // In the relevant context, the following characters are escaped (in Go syntax):
 //
-// 		'\\', '#', '`', '-', '*', '[', ']', '(', ')', '_'
+//      '\\', '#', '`', '-', '*', '[', ']', '(', ')', '_'
 //
 package parser // import "akhil.cc/mexdown/parser"
 
@@ -126,7 +126,7 @@ func Parse(src io.Reader) (f *ast.File, err error) {
 			i, j = i-sub, j-sub
 		} else if pi != nil && pj != nil {
 			// body
-			par := &ast.Paragraph{Body: pi.Body + "\n" + pj.Body, Format: pi.Format}
+			par := &ast.Paragraph{Body: pi.Body + pj.Body, Format: pi.Format}
 			f.List[i] = par
 			// remove jth
 			copy(f.List[j:], f.List[j+1:])
@@ -298,9 +298,9 @@ func (p *parser) text(end rune) ast.Text {
 
 	// highest precedence is raw,
 	// so you can do a pass to eliminate everything that is between raw tags
-	// 	if there is an odd number of backtick characters, then the last backtick
+	//  if there is an odd number of backtick characters, then the last backtick
 	//    character is not a delimeter for a raw tag
-	// 	you can append these format asts then
+	//  you can append these format asts then
 	ib := -1
 	for i := 0; i < len(tokens); i++ {
 		if tokens[i].s == "`" {
@@ -489,13 +489,13 @@ func (p *parser) directive() ast.Stmt {
 	for p.next() == '`' {
 		prefix += "`"
 	}
-	cmd := p.line(nil)
+	cmd := strings.TrimSuffix(p.line(nil), "\n")
 	if cmd != "" {
 		cmd += "\n"
 	}
 	var buf strings.Builder
 	for {
-		l := p.line(nil)
+		l := strings.TrimSuffix(p.line(nil), "\n")
 		if strings.HasPrefix(l, prefix) {
 			if len(strings.TrimSpace(l[len(prefix):])) != 0 {
 				p.errorf("Cannot have text on the same line that a directive is terminated: %s\n", l)
@@ -571,16 +571,16 @@ func (p *parser) listItem() (ast.ListItem, error) {
 	}
 	if p.r == '[' {
 		p.next()
-		li.Label = p.str(']', func(r rune) bool { return r == '\\' || r == ']' }, nil)
+		li.Label = p.str(func(r rune) bool { return r == ']' }, func(r rune) bool { return r == '\\' || r == ']' }, nil)
 		if p.r != ']' {
 			p.errorf("List item's label does not have a closing bracket: %s", "["+li.Label)
 		}
 		p.next()
 	}
-	ln := p.line(nil) // w/o '\n' at the end
+	ln := strings.TrimSuffix(p.line(nil), "\n") // w/o '\n' at the end
 	// Combine consecutive list items
 	for {
-		l := p.line(nil) // w/o '\n' at the end
+		l := strings.TrimSuffix(p.line(nil), "\n") // w/o '\n' at the end
 		tr := strings.TrimSpace(l)
 		if len(tr) == 0 || tr[0] == '-' {
 			// new list or new item
@@ -603,9 +603,11 @@ func (p *parser) paragraph(before string) *ast.Paragraph {
 		p.b = bufio.NewReader(rdr)
 		p.next()
 	}
+	b := p.line(nil)
+	b += p.str(func(r rune) bool { return r != '\n' }, func(r rune) bool { return r == '\\' }, nil)
 	par := ast.Paragraph{
 		Format: nil,
-		Body:   p.line(nil),
+		Body:   b,
 	}
 	return &par
 }
@@ -622,7 +624,7 @@ func (p *parser) next() rune {
 // str reads all input up to, but not including end.
 // Does not advance pointer in input past end.
 // Calls f to determine whether or not to write.
-func (p *parser) str(end rune, esc, f func(rune) bool) string {
+func (p *parser) str(end func(rune) bool, esc, f func(rune) bool) string {
 	var buf strings.Builder
 	var eb strings.Builder
 	for {
@@ -636,7 +638,7 @@ func (p *parser) str(end rune, esc, f func(rune) bool) string {
 				escaped = true
 			}
 		}
-		if (p.r == end && !escaped) || p.r == eof {
+		if (end(p.r) && !escaped) || p.r == eof {
 			break
 		}
 		if f == nil || f(p.r) {
@@ -662,7 +664,7 @@ func escapable(r rune) bool {
 // citation = lbrack text rbrack colon string .
 func (p *parser) citation() ast.Stmt {
 	p.next()
-	label := p.str(']', func(r rune) bool { return r == '\\' || r == ']' }, nil)
+	label := p.str(func(r rune) bool { return r == ']' }, func(r rune) bool { return r == '\\' || r == ']' }, nil)
 	if p.r != ']' {
 		return p.paragraph("[" + label)
 	}
@@ -670,7 +672,7 @@ func (p *parser) citation() ast.Stmt {
 		return p.paragraph("[" + label + "]")
 	}
 	p.next()
-	src := p.line(nil)
+	src := strings.TrimSuffix(p.line(nil), "\n")
 	p.cite[label] = src
 	return &ast.Citation{
 		Label: label,
@@ -679,7 +681,10 @@ func (p *parser) citation() ast.Stmt {
 }
 
 func (p *parser) line(esc func(r rune) bool) string {
-	l := p.str('\n', esc, func(r rune) bool { return p.r != '\r' })
+	l := p.str(func(r rune) bool { return r == '\n' }, esc, func(r rune) bool { return p.r != '\r' })
+	if p.r == '\n' {
+		l += "\n"
+	}
 	p.next()
 	return l
 }
