@@ -290,7 +290,8 @@ func (g *Generator) gen() error {
 }
 
 func replace(s, r string, pos, width int) string {
-	return s[:pos] + r + s[pos+width:]
+	rs := []rune(s)
+	return string(rs[:pos]) + r + string(rs[pos+width:])
 }
 
 func open(tag int) bool {
@@ -315,8 +316,8 @@ const (
 )
 
 var fstr = [...]string{
-	anchor:               "<a href=%q>",
-	anchorClose:          "</a>",
+	anchor:             "<a href=%q>",
+	anchorClose:        "</a>",
 	italics:            "<em>",
 	italicsClose:       "</em>",
 	bold:               "<strong>",
@@ -327,8 +328,8 @@ var fstr = [...]string{
 	underlineClose:     "</u>",
 	strikethrough:      "<s>",
 	strikethroughClose: "</s>",
-	code:                "<code>",
-	codeClose:           "</code>",
+	code:               "<code>",
+	codeClose:          "</code>",
 }
 
 func (g *Generator) text(t *ast.Text, w io.Writer) (n int, err error) {
