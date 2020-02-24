@@ -1,6 +1,6 @@
 # mexdown
 
-[![GoDoc](https://godoc.org/akhil.cc/mexdown?status.svg)](https://godoc.org/akhil.cc/mexdown)
+[![Documentation](https://img.shields.io/badge/%E2%80%8B-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/akhil.cc/mexdown)
 [![Build Status](https://travis-ci.org/smasher164/mexdown.svg?branch=master)](https://travis-ci.org/smasher164/mexdown)
 [Blog post](https://www.blog.akhil.cc/mexdown)
 

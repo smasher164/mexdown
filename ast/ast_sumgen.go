@@ -2,16 +2,16 @@
 
 package ast
 
-func (F *File) node()      { panic("default implementation") }
-func (H *Header) node()    { panic("default implementation") }
-func (D *Directive) node() { panic("default implementation") }
-func (L *List) node()      { panic("default implementation") }
-func (L ListItem) node()   { panic("default implementation") }
-func (P *Paragraph) node() { panic("default implementation") }
-func (T Text) node()       { panic("default implementation") }
-func (H *Header) stmt()    { panic("default implementation") }
-func (D *Directive) stmt() { panic("default implementation") }
-func (L *List) stmt()      { panic("default implementation") }
-func (P *Paragraph) stmt() { panic("default implementation") }
-func (C *Citation) node()  { panic("default implementation") }
-func (C *Citation) stmt()  { panic("default implementation") }
+func (_ *Directive) node() { panic("default implementation") }
+func (_ *File) node()      { panic("default implementation") }
+func (_ *Header) node()    { panic("default implementation") }
+func (_ *List) node()      { panic("default implementation") }
+func (_ ListItem) node()   { panic("default implementation") }
+func (_ *Paragraph) node() { panic("default implementation") }
+func (_ Text) node()       { panic("default implementation") }
+func (_ *Citation) node()  { panic("default implementation") }
+func (_ *Citation) stmt()  { panic("default implementation") }
+func (_ *Directive) stmt() { panic("default implementation") }
+func (_ *Header) stmt()    { panic("default implementation") }
+func (_ *List) stmt()      { panic("default implementation") }
+func (_ *Paragraph) stmt() { panic("default implementation") }
